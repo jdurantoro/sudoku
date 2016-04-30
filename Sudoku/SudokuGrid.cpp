@@ -5,11 +5,12 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <ctime> 
+#include <cstdlib>
 
 using namespace std;
 
-CSudokuGrid::CSudokuGrid():
-	allValues(allValuesAscii, allValuesAscii + sizeof(allValuesAscii))
+CSudokuGrid::CSudokuGrid()
 {
 }
 
@@ -82,7 +83,7 @@ void CSudokuGrid::pushBack(uint16_t rowId, uint16_t colId, char value)
 	assert(colId < NROF_COLS);
 	assert(value >= 49); assert(value <= 57); // '1' = 49, '9' = 57
 
-	cells[rowId][colId].push_back(value);
+	m_cells[rowId][colId].push_back(value);
 }
 
 /**
@@ -94,7 +95,7 @@ void CSudokuGrid::assign(const uint16_t rowId, const uint16_t colId, const char 
 	assert(colId < NROF_COLS);
 	assert(value >= 49); assert(value <= 57); // '1' = 49, '9' = 57
 
-	cells[rowId][colId].assign(1, value);
+	m_cells[rowId][colId].assign(1, value);
 }
 
 /**
@@ -105,7 +106,7 @@ void CSudokuGrid::notAssigned(const uint16_t rowId, const uint16_t colId)
 	assert(rowId < NROF_ROWS);
 	assert(colId < NROF_COLS);
 
-	cells[rowId][colId].assign(allValues.begin(), allValues.end());
+	m_cells[rowId][colId].assign(allValues.begin(), allValues.end());
 }
 
 /**
@@ -122,8 +123,8 @@ uint32_t CSudokuGrid::checkRow(const uint16_t rowId)
 
 	for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
 
-		if (1 == cells[rowId][colId].size()) {
-			val.push_back(cells[rowId][colId].front());
+		if (1 == m_cells[rowId][colId].size()) {
+			val.push_back(m_cells[rowId][colId].front());
 		}
 		else {
 			candPos.push_back({rowId, colId});
@@ -174,8 +175,8 @@ uint32_t CSudokuGrid::checkColumn(const uint16_t colId)
 
 	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
 
-		if (1 == cells[rowId][colId].size()) {
-			val.push_back(cells[rowId][colId].front());
+		if (1 == m_cells[rowId][colId].size()) {
+			val.push_back(m_cells[rowId][colId].front());
 		}
 		else {
 			candPos.push_back({rowId, colId});
@@ -231,8 +232,8 @@ uint32_t CSudokuGrid::checkBox(const uint16_t bandId, const uint16_t stackId)
 
 			const cellPos_t cellPos{(uint16_t)(bandId * (NROF_ROWS / NROF_BANDS) + rowId), (uint16_t)(stackId * (NROF_COLS / NROF_STACKS) + colId)};
 
-			if (1 == cells[cellPos.rowId][cellPos.colId].size()) {
-				val.push_back(cells[cellPos.rowId][cellPos.colId].front());
+			if (1 == m_cells[cellPos.rowId][cellPos.colId].size()) {
+				val.push_back(m_cells[cellPos.rowId][cellPos.colId].front());
 			}
 			else {
 				candPos.push_back({ cellPos.rowId, cellPos.colId });
@@ -310,8 +311,8 @@ uint32_t CSudokuGrid::hiddenSingleBox(const uint16_t bandId, const uint16_t stac
 			const int distance = std::distance(cand.begin(), std::find(cand.begin(), cand.end(), *it));
 			const cellPos_t cellPos = candPos[distance];
 
-			cells[cellPos.rowId][cellPos.colId].clear();
-			cells[cellPos.rowId][cellPos.colId].push_back(*it);
+			m_cells[cellPos.rowId][cellPos.colId].clear();
+			m_cells[cellPos.rowId][cellPos.colId].push_back(*it);
 
 			result++;
 		}
@@ -525,7 +526,7 @@ int CSudokuGrid::Solve()
 	retVal = checkGrid(iter);
 
 	if (VALID_NOT_SOLVED == retVal) {
-		retVal = bruteForce(iter);
+		retVal = Search(iter);
 	}
 
 	return iter;
@@ -542,7 +543,7 @@ bool CSudokuGrid::isSolved()
 
 		for (uint32_t colId = 0; colId < NROF_COLS; colId++) {
 			
-			if (1 < cells[rowId][colId].size()) {
+			if (1 < m_cells[rowId][colId].size()) {
 				
 				return false;
 			}
@@ -565,9 +566,9 @@ int CSudokuGrid::print()
 
 		for (uint16_t stackId = 0; stackId < NROF_STACKS; stackId++) {
 
-			std::cout << (char)((1 == cells[rowId][stackId*NROF_STACKS + 0].size()) ? cells[rowId][stackId*NROF_STACKS + 0].front() : 46) << " "
-				      << (char)((1 == cells[rowId][stackId*NROF_STACKS + 1].size()) ? cells[rowId][stackId*NROF_STACKS + 1].front() : 46) << " "
-				      << (char)((1 == cells[rowId][stackId*NROF_STACKS + 2].size()) ? cells[rowId][stackId*NROF_STACKS + 2].front() : 46) << " " 
+			std::cout << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 0].size()) ? m_cells[rowId][stackId*NROF_STACKS + 0].front() : 46) << " "
+				      << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 1].size()) ? m_cells[rowId][stackId*NROF_STACKS + 1].front() : 46) << " "
+				      << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 2].size()) ? m_cells[rowId][stackId*NROF_STACKS + 2].front() : 46) << " "
 				      << "\t";
 		}
 		
@@ -605,7 +606,7 @@ void CSudokuGrid::dumpCell(const uint16_t rowId, const uint16_t colId)
 
 	std::cout << "[" << rowId << "]" << "[" << colId << "] : ";
 
-	for (std::list<char>::iterator it = cells[rowId][colId].begin(); it != cells[rowId][colId].end(); ++it)
+	for (std::list<char>::iterator it = m_cells[rowId][colId].begin(); it != m_cells[rowId][colId].end(); ++it)
 		std::cout << ' ' << *it;
 
 	std::cout << endl;
@@ -656,12 +657,54 @@ void CSudokuGrid::dumpBox(const uint16_t bandId, const uint16_t stackId)
 }
 
 /**
+ * Generate a Sudoku puzzle according to a level of difficulty
+ */
+bool CSudokuGrid::generate(const uint8_t level)
+{
+	assert(level < NROF_LEVELS);
+
+	std::cout << "level: " << std::to_string(level) << " ... " << endl;
+
+	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
+
+		for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
+
+			m_cells[rowId][colId] = allValues; // 1 to 9
+		}
+	}
+
+	std::vector<char> val({ 1, 2, 3, 4, 5, 6, 7, 8, 9 });
+	std::random_shuffle(val.begin(), val.end());
+
+	std::vector<char>::iterator it;
+	uint16_t id;
+
+	for (it = val.begin(), id = 0; it != val.end(); ++it, id++) {
+
+		const uint8_t nrof_times = REP_PATT[level][id];
+	}
+
+
+
+
+	// IsGridValid()
+
+	// GEN_MASK[level]
+	// generate with verify
+	// then apply mask
+	// crear una lista de celulas por asignar cellPos_t
+
+
+	return false;
+}
+
+/**
  * Locates the box with less combined candidates ('best box') and the cell within the box with less candidates ('best cell'). 
  * Then, it will assign the first candidate for the 'best cell' as its value and will try to solve the grid by appliying 
  * the basic techniques. In case it is not solved but it is still a valid grid, it will continue recursively the procedure till
  * the grid is solved or invalid.
  */
-int CSudokuGrid::bruteForce(uint32_t &iter)
+int CSudokuGrid::Search(uint32_t &iter)
 {
 	size_t size;
 	uint16_t bandId, stackId;
@@ -674,8 +717,8 @@ int CSudokuGrid::bruteForce(uint32_t &iter)
 	int retVal = VALID_NOT_SOLVED;
 
 
-	bestBox(bandId, stackId, size);
-	bestCell(bandId, stackId, rowId, colId, size);
+	searchBox(bandId, stackId, size);
+	searchCell(bandId, stackId, rowId, colId, size);
 
 	cellCpy = getCell(rowId, colId);
 		
@@ -693,7 +736,7 @@ int CSudokuGrid::bruteForce(uint32_t &iter)
 		if (VALID_NOT_SOLVED == retVal) {
 
 			//gridCpy.print();
-			gridCpy.bruteForce(iter);
+			gridCpy.Search(iter);
 		}
 	}
 		
@@ -705,7 +748,7 @@ int CSudokuGrid::bruteForce(uint32_t &iter)
  */
 std::list<char> CSudokuGrid::getCell(const uint16_t rowId, const uint16_t colId) const
 {
-	return cells[rowId][colId];
+	return m_cells[rowId][colId];
 }
 
 /**
@@ -716,7 +759,7 @@ CSudokuGrid CSudokuGrid::operator=(const CSudokuGrid & grid)
 	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
 
 		for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
-			cells[rowId][colId] = grid.getCell(rowId, colId);
+			m_cells[rowId][colId] = grid.getCell(rowId, colId);
 		}
 	}
 	return *this;
@@ -734,8 +777,8 @@ bool CSudokuGrid::IsRowValid(const uint16_t rowId)
 
 	for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
 
-		if(1 == cells[rowId][colId].size()){
-			val.push_back(cells[rowId][colId].front());
+		if(1 == m_cells[rowId][colId].size()){
+			val.push_back(m_cells[rowId][colId].front());
 		}
 	}
 
@@ -765,8 +808,8 @@ bool CSudokuGrid::IsColValid(const uint16_t colId)
 
 	for (uint16_t rowId = 0; rowId < NROF_COLS; rowId++) {
 
-		if (1 == cells[rowId][colId].size()) {
-			val.push_back(cells[rowId][colId].front());
+		if (1 == m_cells[rowId][colId].size()) {
+			val.push_back(m_cells[rowId][colId].front());
 		}
 	}
 
@@ -801,8 +844,8 @@ bool CSudokuGrid::IsBoxValid(const uint16_t bandId, const uint16_t stackId)
 
 			const cellPos_t cellPos{ (uint16_t)(bandId * (NROF_ROWS / NROF_BANDS) + rowId), (uint16_t)(stackId * (NROF_COLS / NROF_STACKS) + colId) };
 
-			if (1 == cells[cellPos.rowId][cellPos.colId].size()) 
-				val.push_back(cells[cellPos.rowId][cellPos.colId].front());
+			if (1 == m_cells[cellPos.rowId][cellPos.colId].size())
+				val.push_back(m_cells[cellPos.rowId][cellPos.colId].front());
 		}
 	}
 
@@ -868,15 +911,15 @@ uint32_t CSudokuGrid::remove(std::vector<char> &val, std::vector<cellPos_t> &can
 
 		for (std::vector<char>::iterator it = val.begin(); it != val.end(); ++it) {
 
-			if (1 < cells[rowId][colId].size()) {
+			if (1 < m_cells[rowId][colId].size()) {
 
-				cells[rowId][colId].remove(*it);
+				m_cells[rowId][colId].remove(*it);
 
-				if (1 == cells[rowId][colId].size()) {
+				if (1 == m_cells[rowId][colId].size()) {
 					result++;
 				}
 				else {
-					cells[rowId][colId].sort();
+					m_cells[rowId][colId].sort();
 				}
 			}
 		}
@@ -899,13 +942,13 @@ uint32_t CSudokuGrid::removeInRow(const uint16_t rowId, const uint16_t stackId, 
 
 		if ((colId / NROF_STACKS) != stackId) {
 
-			const size_t size = cells[rowId][colId].size();
+			const size_t size = m_cells[rowId][colId].size();
 			if (1 == size)
 				continue;
 
-			cells[rowId][colId].remove(val);
+			m_cells[rowId][colId].remove(val);
 
-			if(cells[rowId][colId].size() < size)
+			if(m_cells[rowId][colId].size() < size)
 				result++;
 		}
 	}
@@ -927,13 +970,13 @@ uint32_t CSudokuGrid::removeInCol(const uint16_t colId, const uint16_t bandId, c
 
 		if ((rowId / NROF_BANDS) != bandId) {
 
-			const size_t size = cells[rowId][colId].size();
+			const size_t size = m_cells[rowId][colId].size();
 			if (1 == size)
 				continue;
 
-			cells[rowId][colId].remove(val);
+			m_cells[rowId][colId].remove(val);
 
-			if (cells[rowId][colId].size() < size)
+			if (m_cells[rowId][colId].size() < size)
 				result++;
 		}
 	}
@@ -952,9 +995,9 @@ void CSudokuGrid::sumBox(const uint16_t bandId, const uint16_t stackId, std::lis
 
 			const cellPos_t cellPos{ (uint16_t)(bandId * (NROF_ROWS / NROF_BANDS) + rowId), (uint16_t)(stackId * (NROF_COLS / NROF_STACKS) + colId) };
 
-			if (1 < cells[cellPos.rowId][cellPos.colId].size()) {
+			if (1 < m_cells[cellPos.rowId][cellPos.colId].size()) {
 
-				std::list<char> &cell = cells[cellPos.rowId][cellPos.colId];
+				std::list<char> &cell = m_cells[cellPos.rowId][cellPos.colId];
 				cand.insert(cand.end(), cell.begin(), cell.end());
 
 				for (std::list<char>::iterator it = cell.begin(); it != cell.end(); ++it) {
@@ -968,7 +1011,7 @@ void CSudokuGrid::sumBox(const uint16_t bandId, const uint16_t stackId, std::lis
 /**
  * Provides the box with the less candidates 
  */
-void CSudokuGrid::bestBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &bestSize)
+void CSudokuGrid::searchBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &bestSize)
 {
 	bestBandId = 0;
 	bestStackId = 0;
@@ -1005,7 +1048,7 @@ void CSudokuGrid::bestBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &b
 /**
  * Provides the cell within box with the less candidates 
  */
-void CSudokuGrid::bestCell(const uint16_t bandId, const uint16_t stackId, uint16_t & bestRowId, uint16_t & bestColId, size_t & bestSize)
+void CSudokuGrid::searchCell(const uint16_t bandId, const uint16_t stackId, uint16_t & bestRowId, uint16_t & bestColId, size_t & bestSize)
 {
 	assert(bandId < NROF_BANDS);
 	assert(stackId < NROF_STACKS);
@@ -1019,7 +1062,7 @@ void CSudokuGrid::bestCell(const uint16_t bandId, const uint16_t stackId, uint16
 		for (uint16_t colId = 0; colId < (NROF_COLS / NROF_STACKS); colId++) {
 
 			const cellPos_t cellPos{ (uint16_t)(bandId * (NROF_ROWS / NROF_BANDS) + rowId), (uint16_t)(stackId * (NROF_COLS / NROF_STACKS) + colId) };
-			const size_t size = cells[cellPos.rowId][cellPos.colId].size();
+			const size_t size = m_cells[cellPos.rowId][cellPos.colId].size();
 
 			if (1 == size) {
 				continue;

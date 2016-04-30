@@ -13,13 +13,14 @@ static void show_usage(std::string name)
 	std::cerr << "Usage: " << name << " <option(s)> [drive:][path]filename\n"
 		<< "Options:\n"
 		<< "\t-h,--help\t\tPrints usage\n"
-		<< "\t-s,--solve filename\tSpecify the Sudoku puzzle to be solved"
+		<< "\t-s,--solve filename\tSpecify the Sudoku puzzle to be solved\n"
+		<< "\t-g n ,--generate n\tGenerate a Sudoku puzzle of difficulty level 'n' (0=easy, 1=medium, 2=hard, 3=samurai)"
 		<< std::endl;
 }
 
 int main(int argc, char** argv)
 {
-	if (argc < 3) {
+	if ((argc < 3) || (argc > 5)) {
 
 		show_usage(argv[0]);
 		return 1;
@@ -62,9 +63,26 @@ int main(int argc, char** argv)
 				return 1;
 			}
 		}
-		else {
-			// ToDO
-			// Generate Sudoku
+		else if ((arg == "-g") || (arg == "--generate")) {
+
+			if (i + 1 < argc) {
+
+				const std::string level = argv[++i];
+
+				if ((level != "0") && (level != "1") && (level != "2") && (level != "3")) {
+
+					std::cerr << "--generate option requires a difficulty level from 0 to 3 (0=easy, 1=medium, 2=hard, 3=samurai)." << std::endl;
+					return 1;
+				}
+
+				std::cout << "Generating Sudoku ";
+				return grid.generate((uint8_t)std::stoi(level));
+			}
+			else {
+
+				std::cerr << "--generate option requires a difficulty level from 0 to 3 (0=easy, 1=medium, 2=hard, 3=samurai)." << std::endl;
+				return 1;
+			}
 		}
 	}
 
