@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 				{
 					uint32_t iter = 0;
 
-					iter = grid.Solve();
+					grid.solve(iter);
 
 					std::cout << "Iterations: " << iter << std::endl;
 				}
@@ -75,8 +75,13 @@ int main(int argc, char** argv)
 					return 1;
 				}
 
-				std::cout << "Generating Sudoku ";
-				return grid.generate((uint8_t)std::stoi(level));
+				std::cout << "Generating Sudoku level " << level << "" << std::endl;
+
+				int result = 0;
+
+				result = grid.generate((uint8_t)std::stoi(level));
+
+				//std::cout << "Result: " << result << std::endl;
 			}
 			else {
 

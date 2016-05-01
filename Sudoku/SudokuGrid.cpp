@@ -7,6 +7,8 @@
 #include <algorithm>
 #include <ctime> 
 #include <cstdlib>
+#include <random>
+#include <chrono>   
 
 using namespace std;
 
@@ -106,7 +108,7 @@ void CSudokuGrid::notAssigned(const uint16_t rowId, const uint16_t colId)
 	assert(rowId < NROF_ROWS);
 	assert(colId < NROF_COLS);
 
-	m_cells[rowId][colId].assign(allValues.begin(), allValues.end());
+	m_cells[rowId][colId].assign(from1to9.begin(), from1to9.end());
 }
 
 /**
@@ -305,10 +307,10 @@ uint32_t CSudokuGrid::hiddenSingleBox(const uint16_t bandId, const uint16_t stac
 
 	for (std::list<char>::iterator it = candUnique.begin(); it != candUnique.end(); ++it) {
 	
-		int count = std::count(cand.begin(), cand.end(), *it);
+		int count = (int)std::count(cand.begin(), cand.end(), *it);
 		if (1 == count) {
 
-			const int distance = std::distance(cand.begin(), std::find(cand.begin(), cand.end(), *it));
+			const int distance = (int)std::distance(cand.begin(), std::find(cand.begin(), cand.end(), *it));
 			const cellPos_t cellPos = candPos[distance];
 
 			m_cells[cellPos.rowId][cellPos.colId].clear();
@@ -354,7 +356,7 @@ uint32_t CSudokuGrid::checkBand(const uint16_t bandId)
 				if (cand.end() == candIt)
 					break;
 
-				const int distance = std::distance(cand.begin(), candIt);
+				const int distance = (int)std::distance(cand.begin(), candIt);
 				candRowId.push_back(candPos[distance].rowId);
 
 			} while (++candIt != cand.end());
@@ -427,7 +429,7 @@ uint32_t CSudokuGrid::checkStack(const uint16_t stackId)
 				if (cand.end() == candIt)
 					break;
 
-				const int distance = std::distance(cand.begin(), candIt);
+				const int distance = (int)std::distance(cand.begin(), candIt);
 				candColId.push_back(candPos[distance].colId);
 
 			} while (++candIt != cand.end());
@@ -471,7 +473,7 @@ uint32_t CSudokuGrid::checkStacks(const uint16_t stackFirstId, const uint16_t st
  * Performs all previous analysis (basic) techniques in other to remove candidates from the cells iterativelly
  * and checks for the validity of the grid
  */
-int CSudokuGrid::checkGrid(uint32_t &iter)
+int CSudokuGrid::checkGrid(uint32_t &iter, const bool show)
 {
 	int retVal = VALID_NOT_SOLVED;
 	uint32_t result;
@@ -489,24 +491,21 @@ int CSudokuGrid::checkGrid(uint32_t &iter)
 
 	} while (result);
 
-	//print();
 	const bool solved = isSolved();
 
 	if (solved) {
 
-		std::cout << "Puzzle solved!" << std::endl;
 		retVal = VALID_SOLVED;
-		
-		print();
+
+		if (show) {
+
+			std::cout << "Puzzle solved!";
+			print();
+		}
 	}
 	else {
 
-		//dump();
-		//std::cout << "Not solved :(" << std::endl;
-
 		if (false == IsGridValid()) {
-
-			//std::cout << "Invalid Grid!" << std::endl;
 			retVal = NOT_VALID;
 		}
 	}
@@ -518,18 +517,17 @@ int CSudokuGrid::checkGrid(uint32_t &iter)
  * Solves the Sudoku grid first by trying to use the analysis (basic) techniques. In case these do not solve the grid,
  * all possible combinations are checked in a brute force approach that finally gives the solution to the grid
  */
-int CSudokuGrid::Solve()
+int CSudokuGrid::solve(uint32_t &iter, const bool show)
 {
-	uint32_t iter = 0;
-	int retVal = VALID_NOT_SOLVED;
+	iter = 0;
 
-	retVal = checkGrid(iter);
+	int retVal = checkGrid(iter, show);
 
 	if (VALID_NOT_SOLVED == retVal) {
-		retVal = Search(iter);
+		retVal = search(iter, show);
 	}
 
-	return iter;
+	return retVal;
 }
 
 /**
@@ -555,8 +553,10 @@ bool CSudokuGrid::isSolved()
 /**
  * Prints the Sudoku grid layout in boxes
  */
-int CSudokuGrid::print()
+int CSudokuGrid::print(const uint8_t level)
 {
+	assert(level <= NROF_LEVELS);
+
 	std::cout << endl;
 	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
 
@@ -566,9 +566,9 @@ int CSudokuGrid::print()
 
 		for (uint16_t stackId = 0; stackId < NROF_STACKS; stackId++) {
 
-			std::cout << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 0].size()) ? m_cells[rowId][stackId*NROF_STACKS + 0].front() : 46) << " "
-				      << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 1].size()) ? m_cells[rowId][stackId*NROF_STACKS + 1].front() : 46) << " "
-				      << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 2].size()) ? m_cells[rowId][stackId*NROF_STACKS + 2].front() : 46) << " "
+			std::cout << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 0].size()) * GEN_MASK[level][rowId][stackId*NROF_STACKS + 0] ? m_cells[rowId][stackId*NROF_STACKS + 0].front() : 46) << " "
+				      << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 1].size()) * GEN_MASK[level][rowId][stackId*NROF_STACKS + 1] ? m_cells[rowId][stackId*NROF_STACKS + 1].front() : 46) << " "
+				      << (char)((1 == m_cells[rowId][stackId*NROF_STACKS + 2].size()) * GEN_MASK[level][rowId][stackId*NROF_STACKS + 2] ? m_cells[rowId][stackId*NROF_STACKS + 2].front() : 46) << " "
 				      << "\t";
 		}
 		
@@ -659,43 +659,36 @@ void CSudokuGrid::dumpBox(const uint16_t bandId, const uint16_t stackId)
 /**
  * Generate a Sudoku puzzle according to a level of difficulty
  */
-bool CSudokuGrid::generate(const uint8_t level)
+int CSudokuGrid::generate(const uint8_t level)
 {
 	assert(level < NROF_LEVELS);
 
-	std::cout << "level: " << std::to_string(level) << " ... " << endl;
+	initGrid();
 
-	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
+	// Shuffle do not apply on lists
+	std::vector<char> val{ from1to9.begin(), from1to9.end() };
 
-		for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
+    // obtain a time-based seed
+	uint32_t seed = (uint32_t)std::chrono::system_clock::now().time_since_epoch().count();
+	std::shuffle(val.begin(), val.end(), std::default_random_engine(seed));
 
-			m_cells[rowId][colId] = allValues; // 1 to 9
-		}
+	int retVal;
+	int iter = 0;
+
+	do {
+
+		retVal = chance(val, level);
+		std::cout << "\rIter: " << ++iter;
+
+	} while (NOT_VALID == retVal);
+
+	if (VALID_SOLVED == retVal) {
+
+		std::cout << "\nPuzzle generated! " << std::endl;
+		print(level);
 	}
 
-	std::vector<char> val({ 1, 2, 3, 4, 5, 6, 7, 8, 9 });
-	std::random_shuffle(val.begin(), val.end());
-
-	std::vector<char>::iterator it;
-	uint16_t id;
-
-	for (it = val.begin(), id = 0; it != val.end(); ++it, id++) {
-
-		const uint8_t nrof_times = REP_PATT[level][id];
-	}
-
-
-
-
-	// IsGridValid()
-
-	// GEN_MASK[level]
-	// generate with verify
-	// then apply mask
-	// crear una lista de celulas por asignar cellPos_t
-
-
-	return false;
+	return iter;
 }
 
 /**
@@ -704,30 +697,32 @@ bool CSudokuGrid::generate(const uint8_t level)
  * the basic techniques. In case it is not solved but it is still a valid grid, it will continue recursively the procedure till
  * the grid is solved or invalid.
  */
-int CSudokuGrid::Search(uint32_t &iter)
+int CSudokuGrid::search(uint32_t &iter, const bool show)
 {
 	size_t size;
 	uint16_t bandId, stackId;
 	uint16_t rowId, colId;
-	
-	CSudokuGrid gridCpy;
-	std::list<char> cellCpy;
-	std::list<char>::iterator it;
 
 	int retVal = VALID_NOT_SOLVED;
 
+	if (NOT_VALID == searchBox(bandId, stackId, size)) {
+		return NOT_VALID;
+	}
 
-	searchBox(bandId, stackId, size);
-	searchCell(bandId, stackId, rowId, colId, size);
+	if (NOT_VALID == searchCell(bandId, stackId, rowId, colId, size)) {
+		return NOT_VALID;
+	}
 
-	cellCpy = getCell(rowId, colId);
-		
-	for (std::list<char>::iterator it = cellCpy.begin(); it != cellCpy.end(); ++it) {
+	std::list<char> cellCpy = getCell(rowId, colId);
+	CSudokuGrid gridCpy;
+
+	std::list<char>::iterator it;
+	for (it = cellCpy.begin(); it != cellCpy.end(); ++it) {
 
 		gridCpy = *this;
 		gridCpy.assign(rowId, colId, *it);
 
-		retVal = gridCpy.checkGrid(iter);
+		retVal = gridCpy.checkGrid(iter, show);
 
 		if (VALID_SOLVED == retVal) {
 			return retVal;
@@ -736,10 +731,14 @@ int CSudokuGrid::Search(uint32_t &iter)
 		if (VALID_NOT_SOLVED == retVal) {
 
 			//gridCpy.print();
-			gridCpy.Search(iter);
+			retVal = gridCpy.search(iter, show);
+
+			if (VALID_SOLVED == retVal) {
+				return retVal;
+			}
 		}
 	}
-		
+	
 	return retVal;
 }
 
@@ -785,7 +784,7 @@ bool CSudokuGrid::IsRowValid(const uint16_t rowId)
 	val.sort();
 	for (std::list<char>::iterator it = val.begin(); it != val.end(); ++it) {
 
-		int count = std::count(it, val.end(), *it);
+		int count = (int)std::count(it, val.end(), *it);
 		if (1 < count) {
 
 			//std::cout << "Wrong Row(" << rowId << ") " << *it << " appears " << count << " times" << endl;
@@ -816,7 +815,7 @@ bool CSudokuGrid::IsColValid(const uint16_t colId)
 	val.sort();
 	for (std::list<char>::iterator it = val.begin(); it != val.end(); ++it) {
 
-		int count = std::count(it, val.end(), *it);
+		int count = (int)std::count(it, val.end(), *it);
 		if (1 < count) {
 
 			//std::cout << "Wrong Col(" << colId << ") " << *it << " appears " << count << " times" << endl;
@@ -852,7 +851,7 @@ bool CSudokuGrid::IsBoxValid(const uint16_t bandId, const uint16_t stackId)
 	val.sort();
 	for (std::list<char>::iterator it = val.begin(); it != val.end(); ++it) {
 
-		int count = std::count(it, val.end(), *it);
+		int count = (int)std::count(it, val.end(), *it);
 		if (1 < count) {
 
 			//std::cout << "Wrong Box(" << bandId << ", " << stackId << ") " << *it << " appears " << count << " times" << endl;
@@ -935,6 +934,7 @@ uint32_t CSudokuGrid::removeInRow(const uint16_t rowId, const uint16_t stackId, 
 {
 	assert(rowId < NROF_ROWS);
 	assert(stackId < NROF_STACKS);
+	assert(val >= 49); assert(val <= 57); // '1' = 49, '9' = 57
 
 	uint32_t result = 0;
 
@@ -963,6 +963,7 @@ uint32_t CSudokuGrid::removeInCol(const uint16_t colId, const uint16_t bandId, c
 {
 	assert(colId < NROF_COLS);
 	assert(bandId < NROF_BANDS);
+	assert(val >= 49); assert(val <= 57); // '1' = 49, '9' = 57
 
 	uint32_t result = 0;
 
@@ -1011,8 +1012,10 @@ void CSudokuGrid::sumBox(const uint16_t bandId, const uint16_t stackId, std::lis
 /**
  * Provides the box with the less candidates 
  */
-void CSudokuGrid::searchBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &bestSize)
+int CSudokuGrid::searchBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &bestSize)
 {
+	int retVal = VALID_NOT_SOLVED;
+
 	bestBandId = 0;
 	bestStackId = 0;
 	bestSize = NROF_ROWS;
@@ -1035,23 +1038,31 @@ void CSudokuGrid::searchBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t 
 			candUnique.unique();
 
 			const size_t size = candUnique.size();
-			if(size < bestSize)
-			{
+			if (size < bestSize) {
+
 				bestBandId = bandId;
 				bestStackId = stackId;
 				bestSize = size;
 			}
 		}
 	}
+
+	if (NROF_ROWS == bestSize) {
+		retVal = NOT_VALID;
+	}
+	
+	return retVal;
 }
 
 /**
  * Provides the cell within box with the less candidates 
  */
-void CSudokuGrid::searchCell(const uint16_t bandId, const uint16_t stackId, uint16_t & bestRowId, uint16_t & bestColId, size_t & bestSize)
+int CSudokuGrid::searchCell(const uint16_t bandId, const uint16_t stackId, uint16_t & bestRowId, uint16_t & bestColId, size_t & bestSize)
 {
 	assert(bandId < NROF_BANDS);
 	assert(stackId < NROF_STACKS);
+
+	int retVal = VALID_NOT_SOLVED;
 
 	bestRowId = 0;
 	bestColId = 0;
@@ -1079,4 +1090,167 @@ void CSudokuGrid::searchCell(const uint16_t bandId, const uint16_t stackId, uint
 
 	bestRowId += bandId * (NROF_ROWS / NROF_BANDS);
 	bestColId += stackId * (NROF_COLS / NROF_STACKS);
+
+	if (NROF_BANDS == bestSize) {
+		retVal = NOT_VALID;
+	}
+	
+	return retVal;
+}
+
+/**
+ * Provides all possible positions for a given val within a masked grid for assigment
+ */
+void CSudokuGrid::searchAllCells(const char val, const uint8_t level, std::vector<cellPos_t>& candPos, bool random)
+{
+	assert(level < NROF_LEVELS);
+	assert(val >= 49); assert(val <= 57); // '1' = 49, '9' = 57
+
+	candPos.clear();
+
+	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
+
+		for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
+
+			if ((MASKED_CELL == GEN_MASK[level][rowId][colId]) || (1 == m_cells[rowId][colId].size())) {
+				continue;
+			}
+
+			std::list<char>::iterator it;
+			it = std::find(m_cells[rowId][colId].begin(), m_cells[rowId][colId].end(), val);
+
+			if (it != m_cells[rowId][colId].end()) {
+
+				candPos.push_back(cellPos_t{ rowId, colId });
+			}
+		}
+	}
+
+	if (random) {
+
+		uint32_t seed = (uint32_t)std::chrono::system_clock::now().time_since_epoch().count();
+		std::shuffle(candPos.begin(), candPos.end(), std::default_random_engine(seed));
+	}
+}
+
+/**
+ * Count the number of times a value is assgined in the masked grid
+ */
+int CSudokuGrid::countVal(const char val, const uint8_t level)
+{
+	assert(level < NROF_LEVELS);
+	assert(val >= 49); assert(val <= 57); // '1' = 49, '9' = 57
+
+	int result = 0;
+
+	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
+
+		for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
+
+			if(MASKED_CELL == GEN_MASK[level][rowId][colId]) {
+				continue;
+			}
+
+			if ((1 == m_cells[rowId][colId].size()) && (val == m_cells[rowId][colId].front())) {
+				result++;
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Recursively blindly searches and assigns possible values to the grid according to the specified mask 
+ * If after a new assigment, all values from the mask are assigned, then checks if it puzzle can be solved
+ */
+int CSudokuGrid::chance(std::vector<char>& val, const uint8_t level)
+{
+	uint16_t id = NROF_ROWS - 1;
+	char nextVal = '0';
+
+	// Locate the first value that still needs to be assigned
+	for (std::vector<char>::iterator it = val.begin(); it != val.end(); ++it, id--) {
+		
+		const int nrofVal = countVal(*it, level);
+
+		if (nrofVal > REP_PATT[level][id]) {
+			return NOT_VALID;
+		}
+		
+		if((nrofVal < REP_PATT[level][id]) && ('0' == nextVal)) {
+			
+			nextVal = *it;
+			break;
+		}
+	}
+
+	// All values assigned as in REP_PATT and GEN_MASK
+	// Verify grid it has a solution
+	int retVal = VALID_NOT_SOLVED;
+
+	if ('0' == nextVal) {
+		
+		uint32_t iter;
+		return solve(iter, false);
+	}
+
+	// All possible cells for nextVal
+	std::vector<cellPos_t> candPos;
+	searchAllCells(nextVal, level, candPos);
+
+	if (0 == candPos.size()) {
+		return VALID_NOT_SOLVED;
+	}
+
+	uint32_t iter;
+	CSudokuGrid gridCpy;
+
+	std::vector<cellPos_t>::iterator pos;
+	for (pos = candPos.begin(); pos != candPos.end(); ++pos) {
+		
+		gridCpy = *this;
+		gridCpy.assign((*pos).rowId, (*pos).colId, nextVal);
+
+		retVal = gridCpy.checkGrid(iter, false);
+
+		if (VALID_SOLVED == retVal) {
+			return retVal;
+		}
+
+		if (VALID_NOT_SOLVED == retVal) {
+			
+			retVal = gridCpy.chance(val, level);
+
+			if (VALID_SOLVED == retVal) {
+				
+				*this = gridCpy;
+				return retVal;
+			}
+
+			if (NOT_VALID == retVal) {
+				return retVal;
+			}
+		}
+	}
+
+	if ((candPos.end() == pos) && (VALID_NOT_SOLVED == retVal)) {
+		return NOT_VALID;
+	}
+
+	return retVal;
+}
+
+/**
+ * Initialize a grid with all possible values
+ */
+void CSudokuGrid::initGrid()
+{
+	for (uint16_t rowId = 0; rowId < NROF_ROWS; rowId++) {
+
+		for (uint16_t colId = 0; colId < NROF_COLS; colId++) {
+
+			m_cells[rowId][colId] = from1to9; // 1 to 9
+		}
+	}
 }

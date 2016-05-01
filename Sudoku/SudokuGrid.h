@@ -16,13 +16,16 @@ enum { NOT_VALID = -1, VALID_NOT_SOLVED = 0, VALID_SOLVED = 1};
 
 // Levels of difficulty for Sudoku grid generation
 enum { EASY = 0, MEDIUM = 1, HARD = 2, SAMURAI = 3};
+
 #define NROF_LEVELS (SAMURAI + 1)
+#define MASKED_CELL (0)
+
 
 // Generatr Mask
 // Masks to be applied to Sudoku grids depending on difficulty
 //  '1' represents the value will be not masked
 //  '0' will mask the value
-const uint8_t GEN_MASK[NROF_LEVELS][NROF_ROWS][NROF_COLS] = {
+const uint8_t GEN_MASK[NROF_LEVELS + 1][NROF_ROWS][NROF_COLS] = {
 
 	{{ 1,1,0,0,0,0,0,1,1 }, // easy
 	 { 1,0,0,1,1,1,0,0,1 },
@@ -62,7 +65,17 @@ const uint8_t GEN_MASK[NROF_LEVELS][NROF_ROWS][NROF_COLS] = {
 	 { 0,0,0,1,0,1,0,1,0 },
 	 { 0,1,0,0,0,1,0,0,0 },
 	 { 0,0,1,0,0,1,1,0,0 },
-	 { 1,0,1,0,0,0,0,0,1 }}
+	 { 1,0,1,0,0,0,0,0,1 }},
+
+    {{ 1,1,1,1,1,1,1,1,1 }, // no mask
+     { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 },
+	 { 1,1,1,1,1,1,1,1,1 }}
 };
 
 // Repeition Pattern
@@ -84,7 +97,7 @@ const uint8_t REP_PATT[NROF_LEVELS][NROF_ROWS] = {
 };
 
 // List containing all possible values for a cell
-const std::list<char> allValues({ 49, 50, 51, 52, 53, 54, 55, 56, 57 }); // '1' = 49, '9' = 57
+const std::list<char> from1to9({ 49, 50, 51, 52, 53, 54, 55, 56, 57 }); // '1' = 49, '9' = 57
 
 
 class CSudokuGrid
@@ -116,10 +129,10 @@ public:
 	uint32_t checkStack(const uint16_t stackId);
 	uint32_t checkStacks(const uint16_t stackFirstId = 0, const uint16_t stackLastId = (NROF_STACKS - 1));
 	
-	int checkGrid(uint32_t &iter);
-	int Search(uint32_t &iter);
+	int checkGrid(uint32_t &iter, const bool show = true);
+	int search(uint32_t &iter, const bool show = true);
 
-	int Solve();
+	int solve(uint32_t &iter, const bool show = true);
 	bool isSolved();
 
 	bool IsRowValid(const uint16_t rowId);
@@ -127,7 +140,7 @@ public:
 	bool IsBoxValid(const uint16_t bandId, const uint16_t stackId);
 	bool IsGridValid();
 
-	int print();
+	int print(const uint8_t level = NROF_LEVELS);
 
 	void dump();
 	void dumpCell(const uint16_t rowId, const uint16_t colId);
@@ -135,7 +148,7 @@ public:
 	void dumpCol(const uint16_t colId);
 	void dumpBox(const uint16_t bandId, const uint16_t stackId);
 
-	bool generate(const uint8_t level = EASY);
+	int generate(const uint8_t level = EASY);
 
 private:
 	std::list<char> m_cells[NROF_ROWS][NROF_COLS];
@@ -152,8 +165,13 @@ private:
 	
 	void sumBox(const uint16_t bandId, const uint16_t stackId, std::list<char> &cand, std::vector<cellPos_t> &candPos);
 	
-	void searchBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &bestSize);
-	void searchCell(const uint16_t bandId, const uint16_t stackId, uint16_t &bestRowId, uint16_t &bestColId, size_t &bestSize);
+	int searchBox(uint16_t &bestBandId, uint16_t &bestStackId, size_t &bestSize);
+	int searchCell(const uint16_t bandId, const uint16_t stackId, uint16_t &bestRowId, uint16_t &bestColId, size_t &bestSize);
+	void searchAllCells(const char val, const uint8_t level, std::vector<cellPos_t> &candPos, bool random = true);
 
+	int countVal(const char val, const uint8_t level = NROF_LEVELS);
+	int chance(std::vector<char> &val, const uint8_t level);
+
+	void initGrid();
 };
 
